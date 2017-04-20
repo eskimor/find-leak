@@ -17,6 +17,9 @@ import qualified GHCJS.DOM.Navigator               as Navigator
 import qualified GHCJS.DOM.MediaStreamTrack        as MediaStreamTrack
 import Data.Maybe
 import Data.Foldable
+import GHCJS.DOM.EventM (on)
+import           GHCJS.DOM.MediaStreamTrack     (ended)
+import Data.Monoid
 
 main = mainWidget $ el "div" $ mdo
   clicked <- button "Load video!"
@@ -40,12 +43,19 @@ videoWidget = do
 mediaVideo :: (DomBuilder t m, MonadJSM m, DomBuilderSpace m ~ GhcjsDomSpace)
               => MediaStream -> Map Text Text -> m ()
 mediaVideo stream attrs = do
-  (videoTag, _) <- elAttr' "video" attrs blank
+  (videoTag, _) <- elAttr' "video" ("id" =: "myvideo" <> attrs) blank
   let rawElement =  _element_raw videoTag
   liftJSM $ do
     JS.toJSVal rawElement JS.<# ("srcObject" :: Text) $ stream
     _ <- JS.toJSVal rawElement JS.# ("play" :: Text) $ ([] :: [JS.JSVal])
     -- Does not seem to work properly right now ... :-(
+    tracks <- catMaybes <$> MediaStream.getTracks stream
+    -- Cleanup necessary because of DOM node leak in reflex, see: https://bugs.chromium.org/p/chromium/issues/detail?id=255456
+    let registerCleanup track = do
+          _ <- on track ended . liftJSM
+               $ JS.toJSVal rawElement JS.<# ("srcObject" :: Text) $ JS.JSNull
+          pure ()
+    traverse_ registerCleanup tracks
     pure ()
 
 

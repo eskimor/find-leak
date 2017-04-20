@@ -16,7 +16,6 @@ function videoWidget() {
         videoTag.srcObject = stream;
         videoTag.play();
         stopped.addEventListener("click", function() {
-                                            videoTag.pause();
                                             var i =0;
                                             var tracks = stream.getTracks();
                                             for(; i< tracks.length; ++i) {
@@ -24,6 +23,11 @@ function videoWidget() {
                                             }
                                           }
                                 );
+        var tracks = stream.getTracks();
+        var i = 0;
+        for(; i< tracks.length; ++i) {
+            tracks[i].addEventListener('ended', function() { videoTag.srcObject = null;});
+        }
     }
     navigator.mediaDevices.getUserMedia({audio:true, video:true}).then(handleStream);
     document.body.appendChild(ourDiv);
